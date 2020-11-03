@@ -1,3 +1,18 @@
+const admin = require('firebase-admin');
+const serviceAccount = require('./firebase-service-id.json');
+
+// Set up firebase client
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: 'https://discord-werewolf.firebaseio.com',
+});
+const db = admin.database();
+const refsMemo = {};
+setInterval(() => { // Clean up refs every hour
+  const deadRefsWalking = Object.keys(refsMemo).filter(({ killMeAt }) => killMeAt < Date.UTC());
+  deadRefsWalking.forEach(key => delete refsMemo[key]);
+}, 3.6e6)
+
 module.exports = {
   removeCommand: (msg) => {
     const words = msg.split(' ');
@@ -13,7 +28,6 @@ module.exports = {
       return null;
     }
     const user = msg.mentions.users.values().next().value;
-    console.log('Mentioned User: ' + user);
     return user;
   },
 
@@ -24,4 +38,12 @@ module.exports = {
   getMsgAuthorId: (msg) => {
     return msg.author.id;
   },
+
+  getDBRef: (path) => {
+    if (!refsMemo[path]) {
+      refsMemo[path] = db.ref(path);
+      refsMemo[path].killMeAt = Date.UTC() + 8.64e7 // 24 hour life
+    }
+    return refsMemo[path];
+  }
 };
